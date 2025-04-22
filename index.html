@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Free Markdown to HTML Converter | Instant Preview & Export</title>
+  <meta name="description" content="Convert Markdown to HTML instantly with this free, fast, and easy-to-use tool. Live preview, export, copy, and dark mode supported." />
+  <meta name="keywords" content="markdown to html, markdown converter, online markdown editor, html preview, markdown export" />
+  <meta property="og:title" content="Markdown to HTML Converter" />
+  <meta property="og:description" content="Free online Markdown to HTML converter with live preview and export features." />
+  <meta property="og:type" content="website" />
+  <meta name="robots" content="index, follow" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.4/purify.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0; padding: 20px;
+      transition: background 0.3s, color 0.3s;
+      background: #ffffff; color: #000;
+    }
+    .dark-mode {
+      background: #121212;
+      color: #e0e0e0;
+    }
+    h1 { font-size: 2rem; }
+    textarea {
+      width: 100%; height: 200px;
+      font-family: monospace;
+      padding: 10px; margin-bottom: 10px;
+      border: 1px solid #ccc; border-radius: 5px;
+      box-sizing: border-box;
+    }
+    #output-container {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 15px;
+      background: #f9f9f9;
+      min-height: 100px;
+      overflow-x: auto;
+    }
+    .dark-mode #output-container {
+      background: #1e1e1e;
+      color: #e0e0e0;
+      border-color: #444;
+    }
+    .dark-mode textarea {
+      background: #1e1e1e;
+      color: #e0e0e0;
+      border-color: #444;
+    }
+    button {
+      padding: 8px 14px; margin: 5px 5px 10px 0;
+      border: none; border-radius: 4px;
+      cursor: pointer;
+      background: #007bff; color: #fff;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    /* Code block styling */
+    #output pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 1em 0;
+    }
+    .dark-mode #output pre {
+      background-color: #2a2a2a;
+    }
+    #output code {
+      font-family: Consolas, Monaco, 'Andale Mono', monospace;
+    }
+    /* Success message */
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      display: none;
+    }
+    .dark-mode .success-message {
+      background-color: #1e4620;
+      color: #b8e6bd;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Markdown to HTML Converter</h1>
+    <p>Paste your Markdown below and get a live HTML preview. You can copy or download the output.</p>
+
+    <textarea id="markdown" placeholder="Type or paste your Markdown here..."></textarea>
+
+    <div>
+      <button id="copy-btn" onclick="copyHTML()">📋 Copy HTML</button>
+      <button onclick="downloadHTML()">⬇️ Download HTML</button>
+      <button onclick="downloadMarkdownPDF()">📄 Export Markdown to PDF</button>
+      <button onclick="clearContent()">🧹 Clear</button>
+      <button onclick="toggleDarkMode()">🌓 Toggle Theme</button>
+    </div>
+    <div id="copy-message" class="success-message">HTML copied to clipboard!</div>
+
+    <h2>Live HTML Preview</h2>
+    <div id="output-container">
+      <div id="output"></div>
+    </div>
+  </main>
+
+  <script>
+    // Get DOM elements
+    const markdownInput = document.getElementById("markdown");
+    const outputDiv = document.getElementById("output");
+    const body = document.body;
+    const copyMessage = document.getElementById("copy-message");
+
+    // Configure marked options
+    marked.use({
+      gfm: true,
+      breaks: true,
+      smartypants: true
+    });
+
+    function renderMarkdown() {
+      try {
+        const rawMarkdown = markdownInput.value || "";
+        // We need to use marked.parse() for the newer versions of marked
+        const html = marked.parse(rawMarkdown);
+        // Sanitize output to prevent unsafe HTML
+        outputDiv.innerHTML = DOMPurify.sanitize(html);
+        // Highlight code blocks
+        Prism.highlightAll();
+      } catch (e) {
+        outputDiv.innerHTML = `<p style="color:red;">Error rendering Markdown: ${e.message}</p>`;
+        console.error("Markdown rendering error:", e);
+      }
+    }
+
+    function copyHTML() {
+      try {
+        // Modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(outputDiv.innerHTML)
+            .then(showCopySuccessMessage)
+            .catch(err => {
+              console.error("Clipboard API error:", err);
+              fallbackCopyMethod();
+            });
+        } else {
+          fallbackCopyMethod();
+        }
+      } catch (e) {
+        console.error("Copy error:", e);
+        alert("Failed to copy HTML. Please try again.");
+      }
+    }
+
+    function fallbackCopyMethod() {
+      const temp = document.createElement("textarea");
+      temp.value = outputDiv.innerHTML;
+      temp.style.position = "absolute";
+      temp.style.left = "-9999px";
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand("copy");
+      document.body.removeChild(temp);
+      showCopySuccessMessage();
+    }
+
+    function showCopySuccessMessage() {
+      copyMessage.style.display = "block";
+      setTimeout(() => {
+        copyMessage.style.display = "none";
+      }, 2000);
+    }
+
+    function downloadHTML() {
+      try {
+        const htmlWrapper = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Exported HTML</title>
+  <style>
+    body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
+    pre { background-color: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    code { font-family: monospace; }
+    img { max-width: 100%; height: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    blockquote { border-left: 4px solid #ddd; padding-left: 15px; margin-left: 0; }
+  </style>
+</head>
+<body>${outputDiv.innerHTML}</body>
+</html>`;
+        
+        if (outputDiv.innerHTML.trim() === "") {
+          alert("Cannot download an empty file!");
+          return;
+        }
+
+        const blob = new Blob([htmlWrapper], { type: "text/html" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "converted.html";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href); // Clean up
+      } catch (e) {
+        console.error("Download error:", e);
+        alert("Failed to download HTML. Please try again.");
+      }
+    }
+
+    function downloadMarkdownPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const rawMarkdown = markdownInput.value;
+        
+        if (!rawMarkdown.trim()) {
+          alert("Cannot export empty markdown to PDF!");
+          return;
+        }
+        
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 20;
+        const effectiveWidth = pageWidth - (margin * 2);
+        
+        // Convert markdown to HTML for better formatting
+        const html = marked.parse(rawMarkdown);
+        
+        // Basic style to apply to the text
+        doc.setFont("helvetica");
+        doc.setFontSize(12);
+        
+        // Process some markdown elements
+        const lines = rawMarkdown.split('\n');
+        let y = margin;
+        
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i].trim();
+          
+          // Handle headers
+          if (line.startsWith('# ')) {
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.text(line.substring(2), margin, y);
+            y += 10;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+          } else if (line.startsWith('## ')) {
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.text(line.substring(3), margin, y);
+            y += 8;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+          } else if (line.startsWith('### ')) {
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text(line.substring(4), margin, y);
+            y += 6;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+          } 
+          // Handle bullet points
+          else if (line.startsWith('- ')) {
+            doc.text('• ' + line.substring(2), margin + 5, y);
+            y += 6;
+          }
+          // Handle code blocks (very basic support)
+          else if (line.startsWith('```')) {
+            // Skip the opening ```
+            i++;
+            let codeContent = [];
+            // Collect all lines until closing ```
+            while (i < lines.length && !lines[i].startsWith('```')) {
+              codeContent.push(lines[i]);
+              i++;
+            }
+            // Draw a rectangle for code block background
+            if (codeContent.length > 0) {
+              doc.setDrawColor(220, 220, 220);
+              doc.setFillColor(245, 245, 245);
+              const codeHeight = codeContent.length * 6;
+              doc.rect(margin - 2, y - 4, effectiveWidth + 4, codeHeight + 8, 'FD');
+              
+              // Add code content
+              doc.setFont('courier');
+              for (let j = 0; j < codeContent.length; j++) {
+                doc.text(codeContent[j], margin, y);
+                y += 6;
+              }
+              doc.setFont('helvetica');
+              y += 4; // Add some padding after code block
+            }
+          }
+          // Handle normal text
+          else if (line !== '') {
+            // Simple bold detection
+            line = line.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove bold markers for simplicity
+            
+            // Split text to prevent overflow
+            const textLines = doc.splitTextToSize(line, effectiveWidth);
+            for (let j = 0; j < textLines.length; j++) {
+              // Check if we need a new page
+              if (y > doc.internal.pageSize.getHeight() - margin) {
+                doc.addPage();
+                y = margin;
+              }
+              doc.text(textLines[j], margin, y);
+              y += 6;
+            }
+          } else {
+            // Empty line (paragraph break)
+            y += 4;
+          }
+          
+          // Add new page if needed
+          if (y > doc.internal.pageSize.getHeight() - margin) {
+            doc.addPage();
+            y = margin;
+          }
+        }
+        
+        doc.save('markdown_export.pdf');
+      } catch (e) {
+        console.error("PDF export error:", e);
+        alert(`Failed to export PDF: ${e.message}. Please try again.`);
+      }
+    }
+
+    function clearContent() {
+      markdownInput.value = '';
+      renderMarkdown();
+    }
+
+    function toggleDarkMode() {
+      body.classList.toggle("dark-mode");
+      localStorage.setItem("theme", body.classList.contains("dark-mode") ? "dark" : "light");
+    }
+
+    function loadTheme() {
+      if (localStorage.getItem("theme") === "dark") {
+        body.classList.add("dark-mode");
+      }
+    }
+
+    // Initialize
+    function init() {
+      loadTheme();
+
+      const defaultMarkdown = `# Hello World 👋
+
+This is **Markdown** with:
+
+- Live HTML preview
+- Copy/export buttons
+- Dark mode toggle
+
+\`\`\`js
+// Code block
+console.log("Hello from Markdown!");
+\`\`\`
+`;
+      markdownInput.value = defaultMarkdown;
+      // Initial render
+      renderMarkdown();
+      // Add event listener for input changes
+      markdownInput.addEventListener("input", renderMarkdown);
+    }
+
+    // Start the app
+    document.addEventListener("DOMContentLoaded", init);
+    // If the DOM is already loaded, run init immediately
+    if (document.readyState === "interactive" || document.readyState === "complete") {
+      init();
+    }
+  </script>
+</body>
+</html>
